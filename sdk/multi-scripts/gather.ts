@@ -3,11 +3,15 @@
 //   bun sdk/multi-host.ts --script=sdk/multi-scripts/gather.ts --range=swarm01-swarm50
 //
 // Tiles come from the map files (server/content/maps). Everything stays south
-// of the Wilderness ditch (z 3520) and out of Lumbridge/Al Kharid. Draynor
-// spots stay east of x 3086 / south of z 3232, clear of the dark wizards.
-// The first bank trip also banks the starter kit, keeping only the tool. Random-
-// event monsters do turn up: a bot that is hit runs to the bank, and one that
-// lost its tool buys another.
+// of the Wilderness ditch (z 3520) and out of Lumbridge/Al Kharid. Boxes keep
+// clear of the NPCs that hunt low-level players: the mugger at (3175,3361) by
+// the SW mine, the giant rat at (3292,3377) by the SE mine and the Draynor jail
+// guards. The young dark wizards at (3084,3236) are unavoidable for Draynor
+// fishing; the flee handling covers them.
+// The first bank trip also banks the starter kit, keeping only the tool. A bot
+// that is hit (an aggressive NPC, or a random-event monster when the engine has
+// NODE_RANDOM_EVENTS on) runs to the bank, and one that died and lost its tool
+// buys another.
 
 import type { MultiScriptContext } from '../multi-host';
 import type { NearbyLoc, NearbyNpc } from '../types';
@@ -28,19 +32,19 @@ interface Site {
 
 const SITES: Site[] = [
     { name: 'draynor-fish', kind: 'fish', tool: /^small fishing net$/i, box: [3084, 3222, 3092, 3232], stand: [3087, 3229], target: /fishing spot/i, product: /^raw (shrimps|anchovies)$/i, bank: [3093, 3243] },
-    { name: 'varrock-se-mine', kind: 'mine', tool: /^bronze pickaxe$/i, box: [3280, 3358, 3292, 3370], stand: [3285, 3363], target: /copper|tin/i, product: /^(copper|tin) ore$/i, bank: [3253, 3421] },
-    { name: 'varrock-sw-mine', kind: 'mine', tool: /^bronze pickaxe$/i, box: [3170, 3363, 3186, 3380], stand: [3177, 3370], target: /tin|clay/i, product: /^(tin ore|clay)$/i, bank: [3184, 3440] },
+    { name: 'varrock-se-mine', kind: 'mine', tool: /^bronze pickaxe$/i, box: [3280, 3358, 3290, 3368], stand: [3285, 3363], target: /copper|tin/i, product: /^(copper|tin) ore$/i, bank: [3253, 3421] },
+    { name: 'varrock-sw-mine', kind: 'mine', tool: /^bronze pickaxe$/i, box: [3178, 3370, 3186, 3380], stand: [3181, 3375], target: /tin|clay/i, product: /^(tin ore|clay)$/i, bank: [3184, 3440] },
     { name: 'varrock-w-trees', kind: 'chop', tool: /^bronze axe$/i, box: [3150, 3400, 3175, 3456], stand: [3163, 3420], target: /^tree$/i, product: /^logs$/i, bank: [3184, 3440] },
-    { name: 'draynor-trees', kind: 'chop', tool: /^bronze axe$/i, box: [3098, 3238, 3125, 3262], stand: [3108, 3248], target: /^tree$/i, product: /^logs$/i, bank: [3093, 3243] },
+    { name: 'draynor-trees', kind: 'chop', tool: /^bronze axe$/i, box: [3096, 3246, 3115, 3262], stand: [3106, 3253], target: /^tree$/i, product: /^logs$/i, bank: [3093, 3243] },
     { name: 'edgeville-trees', kind: 'chop', tool: /^bronze axe$/i, box: [3115, 3468, 3135, 3505], stand: [3122, 3485], target: /^tree$/i, product: /^logs$/i, bank: [3094, 3491] },
 ];
 
 const SITE_RANGE = 20;
-/** Took damage this recently (ticks): a random-event monster is on us, so run. */
+/** Took damage this recently (ticks): something is attacking us, so run. */
 const FLEE_DAMAGE_TICKS = 5;
 const FLEE_WAIT_MS = 30_000;
 // Replacement tools. The starter kit has no coins, so a bot that lost its tool
-// (died to a random-event monster, or the pickaxe head flew off) sells what it
+// (died, or the random-event pickaxe head flew off) sells what it
 // gathered at the Lumbridge general store first.
 const GENERAL_STORE: [number, number] = [3211, 3247];
 const TOOL_SHOPS = {
