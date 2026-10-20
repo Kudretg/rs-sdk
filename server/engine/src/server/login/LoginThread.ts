@@ -9,6 +9,15 @@ import { trackLoginAttempts, trackLoginTime } from './LoginMetrics.js';
 
 const client = new LoginClient(Environment.node.id);
 
+// rs-sdk: LOCAL_DEV_STAFF=name1,name2 grants staffmodlevel 4 (developer cheats such as
+// ::speed) to those accounts when there is no login server. Ignored on production worlds;
+// unset or empty means nobody is granted anything.
+const localDevStaff = new Set(
+    Environment.node.production
+        ? []
+        : (process.env.LOCAL_DEV_STAFF ?? '').split(',').map(name => name.trim().toLowerCase()).filter(name => name.length > 0)
+);
+
 if (!parentPort) throw new Error('This file must be run as a worker thread.');
 
 parentPort.on('message', async msg => {
@@ -56,8 +65,9 @@ async function handleRequests(parentPort: ParentPort, msg: any) {
                 });
                 stopTimer();
             } else {
-                // rs-sdk: do not auto-grant dev staffmodlevel on non-production worlds (public server)
-                const staffmodlevel = 0;
+                // rs-sdk: do not auto-grant dev staffmodlevel on non-production worlds (public server);
+                // only accounts listed in LOCAL_DEV_STAFF are granted it (see above)
+                const staffmodlevel = localDevStaff.has(String(username).toLowerCase()) ? 4 : 0;
 
                 const profile = Environment.node.profile;
                 if (!fs.existsSync(`data/players/${profile}`)) {

@@ -52,6 +52,14 @@ survival) is described in the project memory; this file is the human-readable ch
       backlog before computing `drift`, so the world resumes normal pacing after sustained
       overload instead of sprinting through the whole backlog at max speed.
       Verify: `grep -n "start - this.tickRate \* 2" src/engine/World.ts`
+- [ ] **`LOCAL_DEV_STAFF` (`LoginThread.ts`)** — with the login server disabled, staffmodlevel
+      is hardcoded to 0 (no auto-granted dev cheats on the public non-production world).
+      `LOCAL_DEV_STAFF=name1,name2` (comma-separated, case-insensitive) grants those accounts
+      staffmodlevel 4 so developer cheats like `::speed` work on a self-hosted server. Ignored
+      when `node.production` is true; unset/empty grants nothing. Read once at engine start.
+      Note: the no-login-server path does not check passwords, so only list names on a server
+      nobody else can reach.
+      Verify: `grep -n "LOCAL_DEV_STAFF" src/server/login/LoginThread.ts`
 
 ### Old-client guidance (rs-sdk)
 - [ ] **Outdated-client record** — `World.ts` login: on a revision mismatch, `noteOutdatedClient()`
