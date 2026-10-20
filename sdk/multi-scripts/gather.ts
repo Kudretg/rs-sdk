@@ -82,7 +82,11 @@ export default async function ({ bot, sdk, name, stats }: MultiScriptContext): P
             continue;
         }
         if (!sdk.findInventoryItem(site.tool)) {
-            await replaceTool();
+            // The first state after a login can arrive before the inventory does,
+            // so only a tool that stays missing counts as lost.
+            const back = await sdk.waitForCondition(s => s.inventory.some(i => site.tool.test(i.name)), 5_000)
+                .then(() => true, () => false);
+            if (!back) await replaceTool();
             continue;
         }
         if (state.inventory.length >= 28) {
