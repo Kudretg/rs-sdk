@@ -98,12 +98,23 @@ function loadEnvFile(envPath: string): void {
  * Load bot credentials automatically.
  * Priority:
  * 1. Already set in process.env (via --env-file)
- * 2. bot.env sibling to the script file
- * 3. Command line arg: bun script.ts <botname> -> bots/<botname>/bot.env
+ * 2. Command line arg naming a bot: bun script.ts <botname> -> <repo>/bots/<botname>/bot.env
+ * 3. bot.env sibling to the script file
+ *
+ * An explicit bot name wins over the sibling file, so one script can drive
+ * several bots (`bun bots/a/run.ts b` controls b, not a). The bots folder is
+ * found from this file, not the working directory.
  */
 function loadEnvFromArgs(): void {
     // Skip if already have credentials (e.g., from --env-file)
     if (process.env.BOT_USERNAME && process.env.PASSWORD) return;
+
+    const botName = process.argv.slice(2).find(arg => !arg.startsWith('-'));
+    const namedEnv = botName ? join(import.meta.dir, '..', 'bots', botName, 'bot.env') : null;
+    if (namedEnv && existsSync(namedEnv)) {
+        loadEnvFile(namedEnv);
+        return;
+    }
 
     // Try bot.env sibling to the script file
     const scriptPath = process.argv[1];
@@ -116,18 +127,9 @@ function loadEnvFromArgs(): void {
         }
     }
 
-    // Try bot name from command line args
-    const args = process.argv.slice(2);
-    const botName = args.find(arg => !arg.startsWith('-'));
-
-    if (!botName) return;
-
-    const envPath = join(process.cwd(), 'bots', botName, 'bot.env');
-    if (!existsSync(envPath)) {
-        throw new Error(`Bot "${botName}" not found at ${envPath}`);
+    if (namedEnv) {
+        throw new Error(`Bot "${botName}" not found at ${namedEnv}`);
     }
-
-    loadEnvFile(envPath);
 }
 
 async function getOrCreateConnection(): Promise<BotConnection> {
